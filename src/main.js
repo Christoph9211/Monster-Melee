@@ -9,11 +9,13 @@ import { Monster } from "./monster.js";
 import { UIManager } from "./ui.js";
 
 const canvas = document.querySelector("#game");
+const isCompactScreen = matchMedia("(max-width: 900px)").matches;
+const maxPixelRatio = isCompactScreen ? 1.25 : 1.5;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, maxPixelRatio));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -27,7 +29,7 @@ scene.add(new THREE.HemisphereLight(0xcde7ff, 0x3e4534, 1.8));
 const sun = new THREE.DirectionalLight(0xffedcf, 3.2);
 sun.position.set(-24, 42, -18);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(1024, 1024);
 sun.shadow.camera.left = sun.shadow.camera.bottom = -42;
 sun.shadow.camera.right = sun.shadow.camera.top = 42;
 scene.add(sun);
@@ -39,8 +41,31 @@ let world = null;
 let game = null;
 let state = "menu";
 
+function disposeObjectTree(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  root.traverse(object => {
+    if (object.geometry && !object.geometry.userData?.keepAlive) geometries.add(object.geometry);
+    const material = object.material;
+    if (Array.isArray(material)) material.forEach(entry => entry && materials.add(entry));
+    else if (material) materials.add(material);
+  });
+  geometries.forEach(geometry => geometry.dispose());
+  materials.forEach(material => material.dispose());
+}
+
+function clearMatchWorld() {
+  if (game?.effects) game.effects.dispose();
+  if (!world) return;
+  scene.remove(world);
+  disposeObjectTree(world);
+  renderer.renderLists.dispose();
+  world = null;
+  game = null;
+}
+
 function startMatch(kind) {
-  if (world) scene.remove(world);
+  clearMatchWorld();
   world = new THREE.Group();
   scene.add(world);
 
@@ -70,6 +95,7 @@ function startMatch(kind) {
 
 function goToMenu() {
   state = "menu";
+  clearMatchWorld();
   ui.showMenu();
 }
 
@@ -99,7 +125,7 @@ addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, maxPixelRatio));
 });
 
 canvas.addEventListener("webglcontextlost", event => {
