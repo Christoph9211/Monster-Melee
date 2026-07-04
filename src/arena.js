@@ -2,37 +2,49 @@ import * as THREE from "three";
 import { nextBuildingState } from "./simulation.js";
 
 const box = new THREE.BoxGeometry(1, 1, 1);
+box.userData.keepAlive = true;
+const MAX_DEBRIS = 140;
 
 export class Arena {
   constructor(scene, effects) {
     this.scene = scene;
     this.effects = effects;
+    this.materials = new Map();
     this.buildings = [];
     this.props = [];
     this.debris = [];
     this.buildWorld();
   }
 
-  mesh(color, position, scale, roughness = .85) {
-    const mesh = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color, roughness }));
+  material(key, options) {
+    if (!this.materials.has(key)) this.materials.set(key, new THREE.MeshStandardMaterial(options));
+    return this.materials.get(key);
+  }
+
+  simpleMaterial(color, roughness = .85, metalness = 0) {
+    return this.material(`std:${color}:${roughness}:${metalness}`, { color, roughness, metalness });
+  }
+
+  mesh(color, position, scale, roughness = .85, shadows = true) {
+    const mesh = new THREE.Mesh(box, this.simpleMaterial(color, roughness));
     mesh.position.set(...position);
     mesh.scale.set(...scale);
     mesh.receiveShadow = true;
-    mesh.castShadow = true;
+    mesh.castShadow = shadows;
     this.scene.add(mesh);
     return mesh;
   }
 
   buildWorld() {
-    this.mesh(0x293129, [0, -.55, 0], [80, 1, 80]);
+    this.mesh(0x293129, [0, -.55, 0], [80, 1, 80], .9, false);
     for (const offset of [-24, 0, 24]) {
-      this.mesh(0x161c20, [offset, .01, 0], [7, .08, 80]);
-      this.mesh(0x161c20, [0, .012, offset], [80, .08, 7]);
+      this.mesh(0x161c20, [offset, .01, 0], [7, .08, 80], .92, false);
+      this.mesh(0x161c20, [0, .012, offset], [80, .08, 7], .92, false);
     }
     for (let mark = -36; mark <= 36; mark += 6) {
       for (const offset of [-24, 0, 24]) {
-        this.mesh(0xc3a85c, [offset, .07, mark], [.16, .03, 2]);
-        this.mesh(0xc3a85c, [mark, .071, offset], [2, .03, .16]);
+        this.mesh(0xc3a85c, [offset, .07, mark], [.16, .03, 2], .8, false);
+        this.mesh(0xc3a85c, [mark, .071, offset], [2, .03, .16], .8, false);
       }
     }
 
@@ -56,30 +68,31 @@ export class Arena {
     const width = 5.2 + (index % 3) * .7;
     const depth = 5.2 + ((index + 1) % 3) * .6;
     const height = 8 + (index * 7 % 9);
-    this.mesh(0x777a74, [x, .15, z], [width + 1, .3, depth + 1]);
+    this.mesh(0x777a74, [x, .15, z], [width + 1, .3, depth + 1], .95, false);
 
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     this.scene.add(group);
-    const body = new THREE.Mesh(box, new THREE.MeshStandardMaterial({
-      color: [0x4f6167, 0x655b58, 0x58645a][index % 3],
-      roughness: .88,
-    }));
+    const bodyMaterial = this.simpleMaterial([0x4f6167, 0x655b58, 0x58645a][index % 3], .88).clone();
+    const body = new THREE.Mesh(box, bodyMaterial);
     body.position.y = height / 2 + .3;
     body.scale.set(width, height, depth);
     body.castShadow = body.receiveShadow = true;
     group.add(body);
 
-    const roof = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: 0x2c3334, roughness: 1 }));
+    const roof = new THREE.Mesh(box, this.simpleMaterial(0x2c3334, 1));
     roof.position.y = height + .45;
     roof.scale.set(width + .35, .35, depth + .35);
+    roof.castShadow = roof.receiveShadow = true;
     group.add(roof);
 
-    const windows = new THREE.MeshStandardMaterial({ color: 0xb8d5c7, emissive: 0x2e473d, emissiveIntensity: .9 });
+    const windows = this.material("windows", { color: 0xb8d5c7, roughness: .65, emissive: 0x2e473d, emissiveIntensity: .9 });
     for (let floor = 2; floor < height - 1; floor += 2.4) {
       const strip = new THREE.Mesh(box, windows);
       strip.position.set(0, floor, depth / 2 + .025);
       strip.scale.set(width * .72, .55, .06);
+      strip.castShadow = false;
+      strip.receiveShadow = false;
       group.add(strip);
     }
     this.buildings.push({ group, body, roof, position: group.position, width, depth, height, health: 100, state: "intact", collapseTime: 0 });
@@ -89,13 +102,14 @@ export class Arena {
     const group = new THREE.Group();
     group.position.set(x, .4, z);
     group.rotation.y = rotation;
-    const body = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: z > 0 ? 0xe34d3c : 0xe5b73b, roughness: .6, metalness: .2 }));
+    const body = new THREE.Mesh(box, this.simpleMaterial(z > 0 ? 0xe34d3c : 0xe5b73b, .6, .2));
     body.scale.set(1.4, .45, 2.5);
+    body.castShadow = body.receiveShadow = true;
     group.add(body);
-    const cab = body.clone();
-    cab.material = new THREE.MeshStandardMaterial({ color: 0x34444c, roughness: .25, metalness: .4 });
+    const cab = new THREE.Mesh(box, this.simpleMaterial(0x34444c, .25, .4));
     cab.position.y = .48;
     cab.scale.set(.95, .5, 1.05);
+    cab.castShadow = cab.receiveShadow = true;
     group.add(cab);
     this.scene.add(group);
     this.props.push({ group, position: group.position, radius: 1.5, crushed: false });
@@ -104,10 +118,14 @@ export class Arena {
   createStreetlight(x, z) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, 3.2, 6), new THREE.MeshStandardMaterial({ color: 0x242b2c, metalness: .7 }));
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, 3.2, 6), this.simpleMaterial(0x242b2c, .5, .7));
     pole.position.y = 1.6;
+    pole.castShadow = false;
     group.add(pole);
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(.23, 6, 4), new THREE.MeshStandardMaterial({ color: 0xffe29a, emissive: 0xffa82f, emissiveIntensity: 2 }));
+    const lamp = new THREE.Mesh(
+      new THREE.SphereGeometry(.23, 6, 4),
+      this.material("lamp", { color: 0xffe29a, roughness: .45, emissive: 0xffa82f, emissiveIntensity: 2 }),
+    );
     lamp.position.y = 3.2;
     group.add(lamp);
     this.scene.add(group);
@@ -195,17 +213,24 @@ export class Arena {
     return closest.position.x - monster.position.x > 0 ? -.7 : .7;
   }
 
+  removeOldestDebris() {
+    const staleIndex = this.debris.findIndex(chunk => chunk.resting);
+    const [chunk] = this.debris.splice(staleIndex === -1 ? 0 : staleIndex, 1);
+    this.scene.remove(chunk.mesh);
+  }
+
   makeRubble(building) {
     building.state = "rubble";
     building.body.visible = building.roof.visible = false;
     for (let i = 0; i < 12; i++) {
-      const chunk = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: 0x55514c, roughness: 1 }));
+      const chunk = new THREE.Mesh(box, this.simpleMaterial(0x55514c, 1));
       chunk.position.copy(building.position).add(new THREE.Vector3((Math.random() - .5) * building.width, .4 + Math.random() * 3, (Math.random() - .5) * building.depth));
       chunk.scale.set(.5 + Math.random() * 1.3, .35 + Math.random(), .5 + Math.random() * 1.3);
       chunk.rotation.set(Math.random(), Math.random(), Math.random());
       chunk.castShadow = chunk.receiveShadow = true;
       this.scene.add(chunk);
       this.debris.push({ mesh: chunk, velocity: new THREE.Vector3((Math.random() - .5) * 7, 3 + Math.random() * 6, (Math.random() - .5) * 7), resting: false });
+      if (this.debris.length > MAX_DEBRIS) this.removeOldestDebris();
     }
   }
 
