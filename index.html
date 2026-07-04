@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080b10" />
+    <link rel="icon" href="data:," />
+    <title>Monster Melee</title>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Monster Melee 3D arena"></canvas>
+
+    <main id="menu" class="panel">
+      <p class="eyebrow">Original kaiju-scale prototype</p>
+      <h1>MONSTER <span>MELEE</span></h1>
+      <p class="tagline">Crush the skyline. Outlast your rival.</p>
+      <fieldset>
+        <legend>Choose your fighter</legend>
+        <div class="fighter-picks">
+          <button class="fighter selected" data-fighter="brute">
+            <b>Titan Brute</b><small>Power · armor · shockwave</small>
+          </button>
+          <button class="fighter" data-fighter="raptor">
+            <b>Volt Raptor</b><small>Speed · agility · lightning</small>
+          </button>
+        </div>
+      </fieldset>
+      <button id="start" class="primary">Start Game</button>
+      <button id="quit">Quit</button>
+      <p id="quit-note" role="status"></p>
+    </main>
+
+    <section id="hud" class="hidden" aria-live="polite">
+      <div class="health player-health">
+        <div><strong id="player-name">Titan Brute</strong><span>PLAYER</span></div>
+        <div class="bar"><i id="player-bar"></i></div>
+      </div>
+      <div class="health enemy-health">
+        <div><span>RIVAL</span><strong id="enemy-name">Volt Raptor</strong></div>
+        <div class="bar"><i id="enemy-bar"></i></div>
+      </div>
+      <div id="special"><span>SPECIAL</span><b id="special-text">READY</b><i></i></div>
+      <div id="controls">
+        WASD move · Shift dash · Space jump/stomp · J light · K heavy · G grab/throw · B block · R roar · L special
+      </div>
+    </section>
+
+    <section id="pause" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <p class="eyebrow">Match suspended</p>
+      <h2 id="pause-title">PAUSED</h2>
+      <button id="resume" class="primary">Resume</button>
+      <button class="to-menu">Main Menu</button>
+    </section>
+
+    <section id="result" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <p class="eyebrow">Arena report</p>
+      <h2 id="result-title">VICTORY</h2>
+      <button id="rematch" class="primary">Rematch</button>
+      <button class="to-menu">Main Menu</button>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

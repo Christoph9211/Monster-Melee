@@ -1,0 +1,128 @@
+:root {
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  color: #eef4ed;
+  background: #080b10;
+  font-synthesis: none;
+  --acid: #b7f34a;
+  --ember: #ff6b35;
+  --panel: rgba(8, 12, 17, 0.88);
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+button { font: inherit; }
+#game { width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+
+.panel {
+  position: fixed;
+  z-index: 10;
+  inset: 50% auto auto 50%;
+  width: min(520px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  padding: 32px;
+  background:
+    linear-gradient(135deg, rgba(183, 243, 74, 0.08), transparent 40%),
+    var(--panel);
+  border: 1px solid rgba(183, 243, 74, 0.45);
+  box-shadow: 0 24px 80px #000c, inset 0 0 50px #0008;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255,255,255,.08);
+  pointer-events: none;
+}
+
+h1, h2 {
+  margin: 6px 0;
+  font-family: Impact, "Arial Black", sans-serif;
+  font-weight: 400;
+  line-height: .9;
+  letter-spacing: .04em;
+}
+h1 { font-size: clamp(48px, 9vw, 76px); }
+h2 { font-size: 56px; }
+h1 span { color: var(--acid); display: block; }
+.eyebrow { margin: 0; color: var(--acid); letter-spacing: .24em; text-transform: uppercase; }
+.tagline { margin: 16px 0 24px; color: #aab5b0; font-size: 18px; }
+
+fieldset { padding: 0; margin: 0 0 18px; border: 0; }
+legend { width: 100%; margin-bottom: 8px; color: #8c9794; text-align: left; text-transform: uppercase; letter-spacing: .12em; }
+.fighter-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+button {
+  position: relative;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px 16px;
+  color: #dce4df;
+  background: #111820;
+  border: 1px solid #364149;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+button:hover, button:focus-visible { border-color: var(--acid); outline: none; }
+button.primary { color: #0c1108; background: var(--acid); border-color: var(--acid); font-weight: 800; }
+.fighter { margin: 0; text-align: left; text-transform: none; letter-spacing: 0; }
+.fighter.selected { border-color: var(--acid); box-shadow: inset 3px 0 var(--acid); }
+.fighter b, .fighter small { display: block; }
+.fighter small { margin-top: 3px; color: #84908c; }
+#quit-note { min-height: 1.2em; margin: 12px 0 0; color: #9ba7a3; }
+
+#hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.health { position: absolute; top: 22px; width: min(36vw, 420px); }
+.health > div:first-child { display: flex; justify-content: space-between; align-items: end; margin-bottom: 5px; text-shadow: 0 2px 4px #000; }
+.health strong { font-size: 22px; text-transform: uppercase; }
+.health span { color: #aab5b0; font-size: 12px; letter-spacing: .16em; }
+.player-health { left: 24px; }
+.enemy-health { right: 24px; text-align: right; }
+.bar { height: 14px; padding: 3px; background: #080b10dd; border: 1px solid #738078; transform: skewX(-12deg); }
+.bar i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #75e05f, var(--acid)); transform-origin: left; transition: transform .15s; }
+.enemy-health .bar i { background: linear-gradient(90deg, var(--ember), #ffb347); transform-origin: right; }
+
+#special {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  width: 160px;
+  padding: 10px 13px;
+  background: #080b10cc;
+  border-left: 3px solid #67d9ff;
+  overflow: hidden;
+}
+#special span, #special b { position: relative; z-index: 1; display: block; }
+#special span { color: #8d9ba0; font-size: 11px; letter-spacing: .15em; }
+#special i { position: absolute; inset: auto 0 0; height: 4px; background: #67d9ff; transform-origin: left; }
+#controls {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  max-width: calc(100vw - 420px);
+  padding: 8px 14px;
+  transform: translateX(-50%);
+  color: #d7dfdc;
+  background: #080b10bb;
+  border: 1px solid #ffffff20;
+  font-size: 13px;
+  text-align: center;
+  transition: opacity .5s;
+}
+
+@media (max-width: 720px) {
+  .panel { padding: 24px 18px; }
+  .health { width: calc(50vw - 30px); }
+  .health strong { font-size: 16px; }
+  #controls { display: none; }
+  #special { right: 16px; bottom: 16px; }
+  .player-health { left: 16px; }
+  .enemy-health { right: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}
