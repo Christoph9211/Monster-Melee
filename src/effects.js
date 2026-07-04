@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+const MAX_PARTICLES = 180;
+
 export class Effects {
   constructor(scene) {
     this.scene = scene;
@@ -7,6 +9,7 @@ export class Effects {
     this.transients = [];
     this.shakeAmount = 0;
     this.geometry = new THREE.OctahedronGeometry(.18, 0);
+    this.geometry.userData.keepAlive = true;
     this.materials = new Map();
   }
 
@@ -15,8 +18,17 @@ export class Effects {
     return this.materials.get(color);
   }
 
+  trimParticles(incoming = 0) {
+    while (this.particles.length + incoming > MAX_PARTICLES) {
+      const stale = this.particles.shift();
+      this.scene.remove(stale.mesh);
+    }
+  }
+
   burst(position, color = 0xff7a35, count = 8, force = 5) {
-    for (let i = 0; i < count; i++) {
+    const spawnCount = Math.min(count, MAX_PARTICLES);
+    this.trimParticles(spawnCount);
+    for (let i = 0; i < spawnCount; i++) {
       const mesh = new THREE.Mesh(this.geometry, this.material(color));
       mesh.position.copy(position);
       mesh.scale.setScalar(.6 + Math.random() * 1.5);
@@ -87,5 +99,19 @@ export class Effects {
         this.transients.splice(i, 1);
       }
     }
+  }
+
+  dispose() {
+    for (const particle of this.particles) this.scene.remove(particle.mesh);
+    this.particles.length = 0;
+    for (const effect of this.transients) {
+      this.scene.remove(effect.mesh);
+      effect.mesh.geometry.dispose();
+      effect.mesh.material.dispose();
+    }
+    this.transients.length = 0;
+    this.geometry.dispose();
+    for (const material of this.materials.values()) material.dispose();
+    this.materials.clear();
   }
 }
