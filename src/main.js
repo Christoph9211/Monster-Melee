@@ -10,6 +10,7 @@ import { UIManager } from "./ui.js";
 
 const canvas = document.querySelector("#game");
 const isCompactScreen = matchMedia("(max-width: 900px)").matches;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const maxPixelRatio = isCompactScreen ? 1.25 : 1.5;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio, maxPixelRatio));
@@ -75,6 +76,7 @@ function startMatch(kind) {
   const player = new Monster(world, kind, new THREE.Vector3(0, 0, -9), 0);
   const enemy = new Monster(world, enemyKind, new THREE.Vector3(0, 0, 9), Math.PI);
   const fighters = [player, enemy];
+  camera.position.set(0, 9, -22);
   game = {
     effects,
     arena,
@@ -83,10 +85,9 @@ function startMatch(kind) {
     combat: new CombatSystem(fighters, arena, effects),
     playerController: new PlayerController(player, input),
     aiController: new AIController(enemy, player, arena),
-    cameraController: new CameraController(camera, effects),
+    cameraController: new CameraController(camera, effects, reducedMotion ? .2 : 1),
     ended: false,
   };
-  camera.position.set(0, 9, -22);
   state = "playing";
   input.flush();
   ui.showGame();
@@ -136,20 +137,24 @@ canvas.addEventListener("webglcontextlost", event => {
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 1 / 30);
   if (state === "playing" && game) {
-    game.playerController.update();
-    game.aiController.update(dt);
-    game.player.update(dt, game.combat, game.arena);
-    game.enemy.update(dt, game.combat, game.arena);
-    game.arena.update(dt);
-    game.effects.update(dt);
-    game.cameraController.update(dt, game.player, game.enemy);
-    ui.update(dt, game.player, game.enemy);
-    input.flush();
+    if (game.effects.consumeHitStop(dt)) {
+      game.cameraController.update(dt, game.player, game.enemy);
+    } else {
+      game.playerController.update();
+      game.aiController.update(dt);
+      game.player.update(dt, game.combat, game.arena);
+      game.enemy.update(dt, game.combat, game.arena);
+      game.arena.update(dt);
+      game.effects.update(dt);
+      game.cameraController.update(dt, game.player, game.enemy);
+      ui.update(dt, game.player, game.enemy);
+      input.flush();
 
-    if (!game.ended && (!game.player.alive || !game.enemy.alive)) {
-      game.ended = true;
-      state = "ended";
-      setTimeout(() => ui.showResult(game.player.alive), 650);
+      if (!game.ended && (!game.player.alive || !game.enemy.alive)) {
+        game.ended = true;
+        state = "ended";
+        setTimeout(() => ui.showResult(game.player.alive), 650);
+      }
     }
   }
   renderer.render(scene, camera);

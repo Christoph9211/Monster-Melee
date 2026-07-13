@@ -95,7 +95,20 @@ export class Arena {
       strip.receiveShadow = false;
       group.add(strip);
     }
-    this.buildings.push({ group, body, roof, position: group.position, width, depth, height, health: 100, state: "intact", collapseTime: 0 });
+    this.buildings.push({
+      group,
+      body,
+      roof,
+      position: group.position,
+      width,
+      depth,
+      height,
+      health: 100,
+      state: "intact",
+      collapseTime: 0,
+      collapseStage: 0,
+      collapseLean: index % 2 ? -.22 : .22,
+    });
   }
 
   createCar(x, z, rotation) {
@@ -139,14 +152,19 @@ export class Arena {
     if (next === "damaged" && building.state === "intact") {
       building.state = next;
       building.body.material.color.multiplyScalar(.6);
-      building.body.rotation.z = .025;
-      this.effects.dust(building.position.clone().setY(building.height * .55), 8);
+      building.body.rotation.z = building.collapseLean * .12;
+      building.roof.position.x += Math.sign(building.collapseLean) * .28;
+      const damagePosition = building.position.clone().setY(building.height * .55);
+      this.effects.dust(damagePosition, 8);
+      this.effects.burst(damagePosition, building.body.material.color.getHex(), 6, 3.5);
     }
     if (next === "collapsing") {
       building.state = next;
-      building.collapseTime = .85;
-      this.effects.shake(.85);
-      this.effects.dust(building.position.clone().setY(building.height * .6), 22);
+      building.collapseTime = 1;
+      building.collapseStage = 0;
+      const direction = new THREE.Vector3(building.collapseLean, .35, .2);
+      this.effects.shake(.65, direction);
+      this.effects.dust(building.position.clone().setY(building.height * .6), 18);
     }
   }
 
@@ -191,7 +209,7 @@ export class Arena {
         this.damageBuilding(building, 45);
         monster.receiveHit(6, monster.velocity.clone().multiplyScalar(-.15), .3, null);
         monster.velocity.multiplyScalar(-.2);
-        this.effects.shake(.65);
+        this.effects.shake(.65, monster.velocity);
         this.effects.burst(monster.position.clone().setY(3), 0xffbd68, 14, 6);
         break;
       }
@@ -221,10 +239,14 @@ export class Arena {
 
   makeRubble(building) {
     building.state = "rubble";
-    building.body.visible = building.roof.visible = false;
+    building.group.visible = false;
     for (let i = 0; i < 12; i++) {
       const chunk = new THREE.Mesh(box, this.simpleMaterial(0x55514c, 1));
-      chunk.position.copy(building.position).add(new THREE.Vector3((Math.random() - .5) * building.width, .4 + Math.random() * 3, (Math.random() - .5) * building.depth));
+      chunk.position.set(
+        building.position.x + (Math.random() - .5) * building.width,
+        .4 + Math.random() * 3,
+        building.position.z + (Math.random() - .5) * building.depth,
+      );
       chunk.scale.set(.5 + Math.random() * 1.3, .35 + Math.random(), .5 + Math.random() * 1.3);
       chunk.rotation.set(Math.random(), Math.random(), Math.random());
       chunk.castShadow = chunk.receiveShadow = true;
@@ -232,14 +254,30 @@ export class Arena {
       this.debris.push({ mesh: chunk, velocity: new THREE.Vector3((Math.random() - .5) * 7, 3 + Math.random() * 6, (Math.random() - .5) * 7), resting: false });
       if (this.debris.length > MAX_DEBRIS) this.removeOldestDebris();
     }
+    const impact = new THREE.Vector3(building.position.x, 0, building.position.z);
+    this.effects.shockwave(impact, 0xb39a78);
+    this.effects.dust(impact, 18);
+    this.effects.shake(.75, new THREE.Vector3(building.collapseLean, .5, .15));
+    this.effects.requestHitStop(.06);
   }
 
   update(dt) {
     for (const building of this.buildings) {
       if (building.state !== "collapsing") continue;
       building.collapseTime -= dt;
-      building.group.scale.y = Math.max(.06, building.collapseTime / .85);
-      building.group.rotation.z += dt * .17;
+      const progress = 1 - Math.max(0, building.collapseTime);
+      building.group.position.y = -building.height * .38 * progress * progress;
+      building.group.rotation.z = building.collapseLean * progress * progress;
+      if (building.collapseStage === 0 && progress >= .35) {
+        building.collapseStage = 1;
+        this.effects.dust(new THREE.Vector3(building.position.x, building.height * .4, building.position.z), 8);
+      }
+      if (building.collapseStage === 1 && progress >= .72) {
+        building.collapseStage = 2;
+        const breakPosition = new THREE.Vector3(building.position.x, building.height * .22, building.position.z);
+        this.effects.dust(breakPosition, 10);
+        this.effects.burst(breakPosition, 0x77706a, 6, 4);
+      }
       if (building.collapseTime <= 0) this.makeRubble(building);
     }
     for (const chunk of this.debris) {

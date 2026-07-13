@@ -52,7 +52,9 @@ export class Monster {
     this.kind = kind;
     this.stats = MONSTERS[kind];
     this.name = this.stats.name;
-    this.root = kind === "brute" ? buildBrute(this.stats) : buildRaptor(this.stats);
+    this.root = new THREE.Group();
+    this.visual = kind === "brute" ? buildBrute(this.stats) : buildRaptor(this.stats);
+    this.root.add(this.visual);
     this.root.position.copy(position);
     this.root.rotation.y = angle;
     scene.add(this.root);
@@ -97,7 +99,9 @@ export class Monster {
   receiveHit(damage, knockback, stun, attacker, blocked = false) {
     if (!this.alive) return;
     this.health = clamp(this.health - damage, 0, this.stats.maxHealth);
-    this.velocity.add(knockback);
+    this.velocity.x += knockback.x;
+    this.velocity.z += knockback.z;
+    this.verticalVelocity += knockback.y;
     this.hitStun = Math.max(this.hitStun, stun);
     this.action = null;
     if (attacker) {
@@ -129,6 +133,9 @@ export class Monster {
     this.hitStun = Math.max(0, this.hitStun - dt);
 
     if (!this.alive) {
+      this.visual.position.y = 0;
+      this.visual.rotation.set(0, 0, 0);
+      this.visual.scale.setScalar(1);
       this.root.rotation.z = THREE.MathUtils.damp(this.root.rotation.z, Math.PI / 2, 5, dt);
       return;
     }
@@ -171,8 +178,45 @@ export class Monster {
       if (this.action.time >= data.windup + data.active + data.recovery) this.action = null;
     }
 
-    const squash = this.action?.type === "heavy" ? .94 : 1;
-    this.root.scale.y = THREE.MathUtils.damp(this.root.scale.y, squash, 12, dt);
+    let lean = 0;
+    let lift = 0;
+    let width = 1;
+    let height = 1;
+    let tilt = 0;
+    if (this.action) {
+      const data = ATTACKS[this.action.type];
+      const windup = clamp(this.action.time / data.windup, 0, 1);
+      const recoil = 1 - clamp((this.action.time - data.windup) / data.active, 0, 1);
+      const phase = this.action.fired ? recoil : windup;
+      if (this.action.type === "light") {
+        lean = (this.action.fired ? .2 : -.14) * phase;
+        height = 1 - .06 * phase;
+      } else if (this.action.type === "heavy") {
+        lean = (this.action.fired ? .34 : -.32) * phase;
+        height = 1 - .18 * phase;
+        width = 1 + .12 * phase;
+      } else if (this.action.type === "special") {
+        lift = .45 * phase;
+        height = width = 1 + .15 * phase;
+      } else if (this.action.type === "grab") {
+        lean = -.2 * phase;
+        width = 1 + .14 * phase;
+      } else if (this.action.type === "throw") {
+        lean = (this.action.fired ? .3 : -.25) * phase;
+        tilt = .12 * phase;
+      } else if (this.action.type === "roar") {
+        height = 1 + .12 * phase;
+        width = 1 + .18 * phase;
+      } else if (this.action.type === "stomp") {
+        height = 1 - .16 * phase;
+        width = 1 + .12 * phase;
+      }
+    }
+    this.visual.position.y = THREE.MathUtils.damp(this.visual.position.y, lift, 18, dt);
+    this.visual.rotation.x = THREE.MathUtils.damp(this.visual.rotation.x, lean, 18, dt);
+    this.visual.rotation.z = THREE.MathUtils.damp(this.visual.rotation.z, tilt, 18, dt);
+    this.visual.scale.x = this.visual.scale.z = THREE.MathUtils.damp(this.visual.scale.x, width, 18, dt);
+    this.visual.scale.y = THREE.MathUtils.damp(this.visual.scale.y, height, 18, dt);
     this.root.rotation.y = this.angle;
     arena.checkThrownCollision(this);
   }

@@ -7,7 +7,9 @@ export class Effects {
     this.scene = scene;
     this.particles = [];
     this.transients = [];
+    this.hitStop = 0;
     this.shakeAmount = 0;
+    this.shakeDirection = new THREE.Vector3(1, .25, 0).normalize();
     this.geometry = new THREE.OctahedronGeometry(.18, 0);
     this.geometry.userData.keepAlive = true;
     this.materials = new Map();
@@ -72,10 +74,21 @@ export class Effects {
     this.transients.push({ mesh: line, life: .16, maxLife: .16, grow: 0 });
   }
 
-  shake(amount) { this.shakeAmount = Math.max(this.shakeAmount, amount); }
+  requestHitStop(duration) { this.hitStop = Math.max(this.hitStop, duration); }
+
+  consumeHitStop(dt) {
+    const stopped = this.hitStop > 0;
+    this.hitStop = Math.max(0, this.hitStop - dt);
+    return stopped;
+  }
+
+  shake(amount, direction = null) {
+    if (direction?.lengthSq() && amount >= this.shakeAmount) this.shakeDirection.copy(direction).normalize();
+    this.shakeAmount = Math.max(this.shakeAmount, amount);
+  }
 
   update(dt) {
-    this.shakeAmount = Math.max(0, this.shakeAmount - dt * 2.8);
+    this.shakeAmount = THREE.MathUtils.damp(this.shakeAmount, 0, 12, dt);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i];
       particle.life -= dt;

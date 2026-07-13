@@ -27,7 +27,8 @@ export class CombatSystem {
       if (thrown) {
         thrown.receiveHit(hitDamage(attack.damage, actor.combo, false, actor.stats.power), new THREE.Vector3(0, 4, 0), attack.stun, actor);
         this.effects.burst(thrown.position.clone().setY(3), actor.stats.accent, 12, 6);
-        this.effects.shake(.65);
+        this.effects.requestHitStop(attack.hitStop);
+        this.effects.shake(.65, direction);
       }
       return;
     }
@@ -65,7 +66,8 @@ export class CombatSystem {
     const knockback = toTarget.normalize().multiplyScalar(attack.knockback * (blocked ? .3 : 1));
     knockback.y = type === "heavy" || type === "special" ? 3.5 : 1.2;
     target.receiveHit(damage, knockback, attack.stun, actor, blocked);
-    this.effects.shake(type === "light" ? .22 : .55);
+    this.effects.requestHitStop(attack.hitStop * (blocked ? .55 : 1));
+    this.effects.shake(type === "light" ? .22 : .55, knockback);
     this.effects.burst(target.position.clone().setY(3), blocked ? 0xc6e7ff : actor.stats.accent, blocked ? 5 : 12, 5);
   }
 }
